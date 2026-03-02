@@ -115,7 +115,7 @@ You're on call. Four tickets just came in. Your job: diagnose and fix.
 > "Our quarterly security scan flagged several issues with the network segmentation:
 > 
 > 1. SSH is accessible from the internet on some hosts (should only be via bastion)
-> 2. The database is directly accessible from the bastion host on port 5432 — it should only be reachable from the API tier subnet
+> 2. The database server can be SSH'd into from anywhere — SSH should be restricted so only the bastion can reach it
 > 3. ICMP is open from anywhere
 > 
 > These need to be tightened up before our compliance review next week."
