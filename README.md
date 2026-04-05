@@ -19,11 +19,11 @@ Fix deliberately broken cloud network infrastructure. Learn by troubleshooting r
 
 ## How It Works
 
-- Infrastructure deploys with intentional misconfigurations
-- Incident tickets describe symptoms — you find the fix
-- Diagnose issues by SSHing into VMs through a bastion host
-- Fix issues from your local machine using cloud provider CLI (az, aws, gcloud)
-- Validate fixes from your local machine — the script tests connectivity via SSH
+1. **Deploy** — Run the setup script. Infrastructure deploys with intentional misconfigurations.
+2. **Read the incidents** — Ticket descriptions tell you the symptoms. Your job is to find the root cause.
+3. **Diagnose** — SSH through the bastion host into VMs to test connectivity, check DNS, inspect services, etc.
+4. **Fix** — From your local terminal, use the cloud provider CLI (`az`, `aws`, `gcloud`) to fix the misconfigured cloud resources (routes, firewall rules, DNS records, etc.). You are not editing Terraform or fixing things from inside the VMs.
+5. **Validate** — Run the validation script from your local machine. It SSHes into the VMs and runs real connectivity checks.
 
 ## Having Trouble?
 
