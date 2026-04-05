@@ -156,18 +156,41 @@ validate_inc_4523() {
 validate_inc_4524() {
     local ALL_PASS=true
     
-    # Check 1: SSH source restriction
+    # Check 1: SSH source restriction (including bastion)
+    local BASTION_NSG="nsg-bastion-${DEPLOYMENT_ID}"
     local WEB_NSG="nsg-web-${DEPLOYMENT_ID}"
-    local SSH_SOURCE=$(az network nsg rule show -g "$RESOURCE_GROUP" \
+    local API_NSG="nsg-api-${DEPLOYMENT_ID}"
+    local DB_NSG="nsg-database-${DEPLOYMENT_ID}"
+    local BASTION_SSH_SOURCE=$(az network nsg rule show -g "$RESOURCE_GROUP" \
+        --nsg-name "$BASTION_NSG" -n allow-ssh-inbound \
+        --query "sourceAddressPrefix" -o tsv 2>/dev/null || echo "*")
+    local WEB_SSH_SOURCE=$(az network nsg rule show -g "$RESOURCE_GROUP" \
         --nsg-name "$WEB_NSG" -n allow-ssh \
         --query "sourceAddressPrefix" -o tsv 2>/dev/null || echo "*")
+    local API_SSH_SOURCE=$(az network nsg rule show -g "$RESOURCE_GROUP" \
+        --nsg-name "$API_NSG" -n allow-ssh \
+        --query "sourceAddressPrefix" -o tsv 2>/dev/null || echo "*")
+    local DB_SSH_SOURCE=$(az network nsg rule show -g "$RESOURCE_GROUP" \
+        --nsg-name "$DB_NSG" -n allow-ssh \
+        --query "sourceAddressPrefix" -o tsv 2>/dev/null || echo "*")
+
+    if [ "$BASTION_SSH_SOURCE" == "*" ] || [ "$BASTION_SSH_SOURCE" == "0.0.0.0/0" ] || [ "$BASTION_SSH_SOURCE" == "Internet" ]; then
+        ALL_PASS=false
+    fi
     
-    if [ "$SSH_SOURCE" == "*" ] || [ "$SSH_SOURCE" == "0.0.0.0/0" ] || [ "$SSH_SOURCE" == "Internet" ]; then
+    if [ "$WEB_SSH_SOURCE" == "*" ] || [ "$WEB_SSH_SOURCE" == "0.0.0.0/0" ] || [ "$WEB_SSH_SOURCE" == "Internet" ]; then
+        ALL_PASS=false
+    fi
+
+    if [ "$API_SSH_SOURCE" == "*" ] || [ "$API_SSH_SOURCE" == "0.0.0.0/0" ] || [ "$API_SSH_SOURCE" == "Internet" ]; then
+        ALL_PASS=false
+    fi
+
+    if [ "$DB_SSH_SOURCE" == "*" ] || [ "$DB_SSH_SOURCE" == "0.0.0.0/0" ] || [ "$DB_SSH_SOURCE" == "Internet" ]; then
         ALL_PASS=false
     fi
     
     # Check 2: Database source restriction
-    local DB_NSG="nsg-database-${DEPLOYMENT_ID}"
     local PG_SOURCE=$(az network nsg rule show -g "$RESOURCE_GROUP" \
         --nsg-name "$DB_NSG" -n postgres-access \
         --query "sourceAddressPrefix" -o tsv 2>/dev/null || echo "")
@@ -189,7 +212,7 @@ validate_inc_4524() {
         --nsg-name "$WEB_NSG" -n allow-icmp \
         --query "sourceAddressPrefix" -o tsv 2>/dev/null || echo "deleted")
     
-    if [ "$ICMP_SOURCE" == "*" ]; then
+    if [ "$ICMP_SOURCE" == "*" ] || [ "$ICMP_SOURCE" == "0.0.0.0/0" ] || [ "$ICMP_SOURCE" == "Internet" ]; then
         ALL_PASS=false
     fi
     
