@@ -167,7 +167,17 @@ validate_inc_4523() {
 validate_inc_4524() {
     local ALL_PASS=true
 
-    # Check 1: SSH source restriction (SG-scoped only; no CIDR)
+    # Check 1: Bastion SSH source restriction (must not be internet-open)
+    local BASTION_SSH_CIDRS=$(aws ec2 describe-security-groups --group-ids "$BASTION_SG_ID" \
+        --query "SecurityGroups[0].IpPermissions[?FromPort==\`22\` && ToPort==\`22\`].IpRanges[].CidrIp" --output text 2>/dev/null)
+    local BASTION_SSH_SG_SOURCES=$(aws ec2 describe-security-groups --group-ids "$BASTION_SG_ID" \
+        --query "SecurityGroups[0].IpPermissions[?FromPort==\`22\` && ToPort==\`22\`].UserIdGroupPairs[].GroupId" --output text 2>/dev/null)
+
+    if [ -z "$BASTION_SSH_CIDRS" ] || [ -n "$BASTION_SSH_SG_SOURCES" ] || echo "$BASTION_SSH_CIDRS" | grep -q "0.0.0.0/0"; then
+        ALL_PASS=false
+    fi
+
+    # Check 2: SSH source restriction on internal tiers (SG-scoped only; no CIDR)
     for SG_ID in "$WEB_SG_ID" "$API_SG_ID" "$DB_SG_ID"; do
         local SSH_CIDRS=$(aws ec2 describe-security-groups --group-ids "$SG_ID" \
             --query "SecurityGroups[0].IpPermissions[?FromPort==\`22\` && ToPort==\`22\`].IpRanges[].CidrIp" --output text 2>/dev/null)
@@ -187,7 +197,7 @@ validate_inc_4524() {
         fi
     done
 
-    # Check 2: Database source restriction (API SG only, TCP/5432 only, SG-scoped)
+    # Check 3: Database source restriction (API SG only, TCP/5432 only, SG-scoped)
     local DB_CIDRS=$(aws ec2 describe-security-groups --group-ids "$DB_SG_ID" \
         --query "SecurityGroups[0].IpPermissions[?IpProtocol=='tcp' && FromPort==\`5432\` && ToPort==\`5432\`].IpRanges[].CidrIp" --output text 2>/dev/null)
     local DB_SG_SOURCES=$(aws ec2 describe-security-groups --group-ids "$DB_SG_ID" \
@@ -211,7 +221,7 @@ validate_inc_4524() {
         done
     fi
 
-    # Check 3: ICMP restriction (SG-scoped only; no CIDR)
+    # Check 4: ICMP restriction (SG-scoped only; no CIDR)
     local ICMP_CIDRS=$(aws ec2 describe-security-groups --group-ids "$WEB_SG_ID" \
         --query "SecurityGroups[0].IpPermissions[?IpProtocol==\`icmp\`].IpRanges[].CidrIp" --output text 2>/dev/null)
     local ICMP_SG_SOURCES=$(aws ec2 describe-security-groups --group-ids "$WEB_SG_ID" \
