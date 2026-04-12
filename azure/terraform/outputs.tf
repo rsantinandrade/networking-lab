@@ -1,3 +1,8 @@
+output "location" {
+  description = "Azure region where resources are deployed"
+  value       = var.location
+}
+
 output "deployment_id" {
   description = "Unique deployment identifier"
   value       = random_id.deployment.hex
