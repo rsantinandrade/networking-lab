@@ -65,15 +65,28 @@ if [[ ! $REPLY == "yes" ]]; then
     exit 0
 fi
 
-# Remove ad-hoc firewall rules created during lab fixes
+# Remove ad-hoc firewall rules created during lab fixes.
+# Delete known rule names first, then sweep for any remaining rules in the VPC.
 if [ -n "$PROJECT_ID" ] && [ -n "$DEPLOYMENT_ID" ] && command -v gcloud >/dev/null 2>&1; then
-    EXTRA_RULES=("allow-web-to-api-8080-${DEPLOYMENT_ID}")
+    EXTRA_RULES=(
+        "allow-web-to-api-${DEPLOYMENT_ID}"
+        "allow-web-to-api-8080-${DEPLOYMENT_ID}"
+    )
     for RULE in "${EXTRA_RULES[@]}"; do
         if gcloud compute firewall-rules describe "$RULE" --project "$PROJECT_ID" >/dev/null 2>&1; then
             echo "Deleting firewall rule: $RULE"
-            gcloud compute firewall-rules delete "$RULE" --project "$PROJECT_ID" -q >/dev/null 2>&1 || true
+            gcloud compute firewall-rules delete "$RULE" --project "$PROJECT_ID" -q || true
         fi
     done
+    # Catch-all: delete any remaining non-Terraform firewall rules whose name
+    # contains the deployment ID (handles rules students may have created).
+    for RULE in $(gcloud compute firewall-rules list --project "$PROJECT_ID" \
+        --format="value(name)" 2>/dev/null | grep "${DEPLOYMENT_ID}" || true); do
+        echo "Deleting leftover firewall rule: $RULE"
+        gcloud compute firewall-rules delete "$RULE" --project "$PROJECT_ID" -q 2>/dev/null || true
+    done
+else
+    echo "DEBUG: Skipped firewall cleanup (PROJECT_ID='${PROJECT_ID}', DEPLOYMENT_ID='${DEPLOYMENT_ID}')"
 fi
 
 # Remove Cloud DNS records so the managed zone can be deleted
@@ -149,11 +162,39 @@ if [ -n "$PROJECT_ID" ] && command -v gcloud >/dev/null 2>&1; then
     done
 fi
 
-# Destroy
+# Destroy — retry once if a leftover firewall rule blocks VPC deletion
+DESTROY_CMD="terraform destroy -auto-approve"
 if [ -n "$PROJECT_ID" ]; then
-    TF_VAR_project_id="$PROJECT_ID" terraform destroy -auto-approve
-else
-    terraform destroy -auto-approve
+    DESTROY_CMD="TF_VAR_project_id=\"$PROJECT_ID\" terraform destroy -auto-approve"
+fi
+
+set +e
+DESTROY_OUTPUT=$(eval "$DESTROY_CMD" 2>&1)
+DESTROY_EXIT=$?
+set -e
+
+echo "$DESTROY_OUTPUT"
+
+if [ $DESTROY_EXIT -ne 0 ]; then
+    # Extract blocking firewall rule names from the error output
+    BLOCKING_RULES=$(echo "$DESTROY_OUTPUT" | grep -oE "global/firewalls/[a-zA-Z0-9_-]+" | sed 's|global/firewalls/||g' | sort -u)
+    if [ -n "$BLOCKING_RULES" ] && [ -n "$PROJECT_ID" ]; then
+        echo ""
+        echo "Detected firewall rules blocking VPC deletion. Cleaning up..."
+        for RULE in $BLOCKING_RULES; do
+            echo "Deleting blocking firewall rule: $RULE"
+            gcloud compute firewall-rules delete "$RULE" --project "$PROJECT_ID" -q 2>&1 || true
+        done
+        echo "Retrying destroy..."
+        if [ -n "$PROJECT_ID" ]; then
+            TF_VAR_project_id="$PROJECT_ID" terraform destroy -auto-approve
+        else
+            terraform destroy -auto-approve
+        fi
+    else
+        echo "Terraform destroy failed. See error above."
+        exit 1
+    fi
 fi
 
 # Clean up SSH key
