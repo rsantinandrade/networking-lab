@@ -58,6 +58,19 @@ The setup script will display SSH connection instructions when complete.
 
 ---
 
+## How This Lab Works
+
+This lab has **two separate activities**:
+
+- **Diagnose via SSH** — The setup script gives you an SSH command to connect through the bastion host. Use it to hop into VMs and check what's broken (test connectivity, resolve DNS, curl endpoints, etc.).
+- **Fix via gcloud CLI** — Once you know the root cause, open a separate terminal on your **local machine** and fix the misconfigured cloud resources using `gcloud` commands (e.g., fix firewall rules, routes, DNS records).
+
+Do **not** edit Terraform files to fix issues. Do **not** try to fix things from inside the VMs. The cloud infrastructure is what's broken — fix it with the cloud CLI.
+
+After fixing, run `./validate.sh` to confirm.
+
+---
+
 ## Getting Help
 
 If you run into issues (broken instructions, validation failures you can’t explain, or suspected bugs), please open a **GitHub Issue** in this repo:
