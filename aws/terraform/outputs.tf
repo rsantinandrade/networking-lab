@@ -1,3 +1,8 @@
+output "region" {
+  description = "AWS region where resources are deployed"
+  value       = var.aws_region
+}
+
 output "deployment_id" {
   description = "Unique deployment identifier"
   value       = random_id.deployment.hex

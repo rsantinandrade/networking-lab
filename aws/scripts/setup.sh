@@ -106,6 +106,10 @@ terraform output -raw ssh_private_key > ~/.ssh/netlab-key 2>/dev/null
 chmod 600 ~/.ssh/netlab-key
 echo -e "  ${GREEN}✓${NC} SSH key saved to ~/.ssh/netlab-key"
 
+# Show deployment region
+REGION=$(terraform output -raw region 2>/dev/null)
+echo -e "  ${GREEN}✓${NC} Region: $REGION"
+
 echo ""
 echo -e "${BLUE}============================================${NC}"
 echo -e "${BLUE}   READY TO START!${NC}"

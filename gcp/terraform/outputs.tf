@@ -3,6 +3,11 @@ output "project_id" {
   value       = var.project_id
 }
 
+output "region" {
+  description = "GCP region where resources are deployed"
+  value       = var.region
+}
+
 output "deployment_id" {
   description = "Unique deployment identifier"
   value       = random_id.deployment.hex
