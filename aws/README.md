@@ -127,9 +127,9 @@ You're on call. Four tickets just came in. Your job: diagnose and fix.
 
 > "Our quarterly security scan flagged several issues with the network segmentation:
 > 
-> 1. SSH is accessible from the internet on some hosts (should only be via bastion)
-> 2. Database accepts connections from too broad a range (should be API tier only; SG-scoped is preferred)
-> 3. ICMP is open from anywhere
+> 1. SSH is accessible from the internet on all hosts — bastion should only allow SSH from your trusted source IP/CIDR, and internal hosts (web, API, database) should only allow SSH from the bastion security group
+> 2. Database accepts connections on port 5432 from too broad a range — it should only accept connections from the API security group
+> 3. ICMP is open from anywhere on the web server — it should only be allowed from the bastion security group
 > 
 > These need to be tightened up before our compliance review next week."
 
